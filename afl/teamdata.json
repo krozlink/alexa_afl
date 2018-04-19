@@ -1,0 +1,30 @@
+{
+  "Teams": [
+    "Adelaide Crows",
+    "Brisbane Lions",
+    "Carlton",
+    "Collingwood",
+    "Essendon",
+    "Fremantle",
+    "Geelong Cats",
+    "Gold Coast Suns",
+    "GWS Giants",
+    "Hawthorn",
+    "Melbourne",
+    "North Melbourne",
+    "Port Adelaide Power",
+    "Richmond",
+    "St Kilda",
+    "Sydney Swans",
+    "West Coast Eagles",
+    "Western Bulldogs"
+  ],
+  "Nicknames": {
+    "Crows": "Adelaide Crows",
+    "Adelaide": "Adelaide Crows",
+    "Lions": "Brisbane Lions",
+    "Brisbane": "Brisbane Lions",
+    "Blues": "Carlton",
+    "Carlton Blues": "Carlton"
+  }
+}
