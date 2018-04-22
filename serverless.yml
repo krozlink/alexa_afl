@@ -3,9 +3,8 @@ service: alexa-afl
 provider:
   name: aws
   runtime: go1.x
-
-stage: dev
-region: ap-southeast-2
+  stage: dev
+  region: us-east-1
 
 package:
  exclude:
@@ -16,5 +15,8 @@ package:
 functions:
   win_next:
     handler: bin/win_next
+    events:
+      - alexaSkill:
+        appId: amzn1.ask.skill.f6128da6-7813-4025-a762-b78be8fc6863
   win_premiership:
     handler: bin/win_premiership
