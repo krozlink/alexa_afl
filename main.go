@@ -5,9 +5,9 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ssm"
+	"github.com/krozlink/alexa_afl/betfair"
 	"github.com/krozlink/betting"
 	"log"
-	"personal/alexa_afl/betfair"
 )
 
 func main() {
