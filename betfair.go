@@ -1,4 +1,4 @@
-package betfair
+package main
 
 import (
 	"bytes"
@@ -10,16 +10,16 @@ import (
 )
 
 type Credentials struct {
-	APIKey         string
-	Login          string
-	Password       string
-	Certificate    []byte
-	CertificateKey []byte
+	APIKey         string `json:"api_key"`
+	Login          string `json:"login"`
+	Password       string `json:"password"`
+	Certificate    string `json:"certificate"`
+	CertificateKey string `json:"certificate_key"`
 }
 
 func GetBetfairSession(c *Credentials) (*betting.Betfair, error) {
 	bet := betting.NewBet(c.APIKey)
-	key, err := getSessionKey(c.Certificate, c.CertificateKey, c.APIKey, c.Login, c.Password)
+	key, err := getSessionKey([]byte(c.Certificate), []byte(c.CertificateKey), c.APIKey, c.Login, c.Password)
 
 	if err != nil {
 		return nil, err

@@ -1,11 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ssm"
-	"github.com/krozlink/alexa_afl/betfair"
 	"github.com/krozlink/betting"
 	"log"
 )
@@ -16,85 +16,46 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	betfair, err := betfair.GetBetfairSession(credentials)
+	betfair, err := GetBetfairSession(credentials)
+	if err != nil {
+		log.Fatalln(err)
+	}
 
 	getEvents(betfair, "10980856")
 	getMarketCatalogues(betfair, "28683484")
 	getMarketBooks(betfair, "1.142715718")
 }
 
-func readCredentials() (*betfair.Credentials, error) {
+func readCredentials() (*Credentials, error) {
 	awsConfig := &aws.Config{
 		Region: aws.String("ap-southeast-2"),
 	}
 
 	sess := session.New(awsConfig)
-	apiCh := getParameter(sess, "betfair_api_key")
-	loginCh := getParameter(sess, "betfair_login")
-	passCh := getParameter(sess, "betfair_password")
-	certCh := getParameter(sess, "betfair_certificate")
-	keyCh := getParameter(sess, "betfair_private_key")
-
-	api := <-apiCh
-	if api.Error != nil {
-		return nil, api.Error
+	param, err := getParameter(sess, "betfair_credentials")
+	if err != nil {
+		return nil, err
 	}
 
-	login := <-loginCh
-	if login.Error != nil {
-		return nil, login.Error
+	credentials := Credentials{}
+	if err = json.Unmarshal(param, &credentials); err != nil {
+		return nil, err
 	}
-
-	password := <-passCh
-	if password.Error != nil {
-		return nil, password.Error
-	}
-
-	certificate := <-certCh
-	if certificate.Error != nil {
-		return nil, certificate.Error
-	}
-
-	key := <-keyCh
-	if key.Error != nil {
-		return nil, key.Error
-	}
-
-	credentials := &betfair.Credentials{
-		APIKey:         api.Value,
-		Certificate:    []byte(certificate.Value),
-		CertificateKey: []byte(key.Value),
-		Login:          login.Value,
-		Password:       password.Value,
-	}
-
-	return credentials, nil
+	return &credentials, nil
 }
 
-func getParameter(sess *session.Session, name string) chan ParameterResult {
+func getParameter(sess *session.Session, name string) ([]byte, error) {
 	sv := ssm.New(sess)
 	params := &ssm.GetParameterInput{
 		Name:           aws.String(name),
 		WithDecryption: aws.Bool(true),
 	}
+	resp, err := sv.GetParameter(params)
+	if err != nil {
+		return nil, err
+	}
 
-	result := make(chan ParameterResult)
-	go func() {
-		resp, err := sv.GetParameter(params)
-		if err != nil {
-			result <- ParameterResult{
-				Value: "",
-				Error: err,
-			}
-		}
-
-		result <- ParameterResult{
-			Value: *resp.Parameter.Value,
-			Error: nil,
-		}
-	}()
-
-	return result
+	return []byte(*resp.Parameter.Value), nil
 }
 
 func getEvents(bet *betting.Betfair, competition string) {
@@ -165,9 +126,4 @@ func printMarketCatalogue(b betting.MarketCatalogue) string {
 
 func printMarketBook(b betting.MarketBook) string {
 	return fmt.Sprintf("Market Id: %v\nIs Delayed: %v\nStatus: %v\n", b.MarketID, b.IsMarketDataDelayed, b.Status)
-}
-
-type ParameterResult struct {
-	Value string
-	Error error
 }
