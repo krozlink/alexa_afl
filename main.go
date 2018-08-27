@@ -8,7 +8,16 @@ import (
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/krozlink/betting"
 	"log"
+	"os"
+	"strings"
 )
+
+type configuration struct {
+	Teams               map[string]string `json:"teams"`
+	CompetitionID       string            `json:"competition_id"`
+	MatchMarketName     string            `json:"match_market_name"`
+	PermiershipMarketID string            `json:"premiership_market_id"`
+}
 
 func main() {
 	credentials, err := readCredentials()
@@ -16,14 +25,18 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	betfair, err := GetBetfairSession(credentials)
+	config, err := readConfiguration()
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	getEvents(betfair, "10980856")
-	getMarketCatalogues(betfair, "28683484")
-	getMarketBooks(betfair, "1.142715718")
+	betfair, err := NewBetfairSession(credentials)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	odds, err := getMatchOdds("Melbourne", config, betfair)
+	log.Println(odds)
 }
 
 func readCredentials() (*Credentials, error) {
@@ -44,6 +57,22 @@ func readCredentials() (*Credentials, error) {
 	return &credentials, nil
 }
 
+func readConfiguration() (*configuration, error) {
+	file, err := os.Open("default_config.json")
+	if err != nil {
+		return nil, err
+	}
+
+	config := &configuration{}
+
+	parser := json.NewDecoder(file)
+	if err = parser.Decode(config); err != nil {
+		return nil, err
+	}
+
+	return config, nil
+}
+
 func getParameter(sess *session.Session, name string) ([]byte, error) {
 	sv := ssm.New(sess)
 	params := &ssm.GetParameterInput{
@@ -58,9 +87,45 @@ func getParameter(sess *session.Session, name string) ([]byte, error) {
 	return []byte(*resp.Parameter.Value), nil
 }
 
-func getEvents(bet *betting.Betfair, competition string) {
+func getMatchOdds(team string, config *configuration, session *betting.Betfair) (float64, error) {
+	events := getEvents(session, config.CompetitionID)
 
-	events, err := bet.ListEvents(betting.Filter{
+	var eventID string
+	var isHome bool
+	for _, e := range events {
+		if strings.HasPrefix(e.Name, team) {
+			eventID = e.ID
+			isHome = true
+		} else if strings.HasSuffix(e.Name, team) {
+			eventID = e.ID
+			isHome = false
+		}
+	}
+
+	if eventID == "" {
+		return 0, fmt.Errorf("No match found for %v", team)
+	}
+
+	marketID, err := getMatchOddsMarket(eventID, config, session)
+	if err != nil {
+		return 0, err
+	}
+
+	runnerIndex := 1
+	if isHome {
+		runnerIndex = 0
+	}
+	price, err := getLastPrice(marketID, runnerIndex, session)
+	if err != nil {
+		return 0, err
+	}
+
+	return price, nil
+}
+
+func getEvents(bet *betting.Betfair, competition string) []betting.Event {
+
+	result, err := bet.ListEvents(betting.Filter{
 		Locale: "en",
 		MarketFilter: &betting.MarketFilter{
 			CompetitionIDs: []string{competition},
@@ -68,18 +133,19 @@ func getEvents(bet *betting.Betfair, competition string) {
 	})
 
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatal(err)
 	}
 
-	for _, e := range events {
-		fmt.Println(printEvent(e.Event))
+	events := make([]betting.Event, len(result))
+	for i, e := range result {
+		events[i] = e.Event
 	}
 
-	fmt.Println(events)
+	return events
 }
 
-func getMarketCatalogues(bet *betting.Betfair, event string) {
-	books, err := bet.ListMarketCatalogue(betting.Filter{
+func getMatchOddsMarket(event string, config *configuration, session *betting.Betfair) (string, error) {
+	books, err := session.ListMarketCatalogue(betting.Filter{
 		Locale: "en",
 		MarketFilter: &betting.MarketFilter{
 			EventIDs: []string{event},
@@ -93,14 +159,16 @@ func getMarketCatalogues(bet *betting.Betfair, event string) {
 	}
 
 	for _, b := range books {
-		fmt.Println(printMarketCatalogue(b))
+		if b.MarketName == config.MatchMarketName {
+			return b.MarketID, nil
+		}
 	}
 
-	fmt.Println(books)
+	return "", fmt.Errorf("No match odds market found")
 }
 
-func getMarketBooks(bet *betting.Betfair, market string) {
-	books, err := bet.ListMarketBook(betting.Filter{
+func getLastPrice(market string, index int, session *betting.Betfair) (float64, error) {
+	books, err := session.ListMarketBook(betting.Filter{
 		Locale:          "en",
 		MarketIDs:       []string{market},
 		OrderProjection: "EXECUTABLE",
@@ -110,20 +178,13 @@ func getMarketBooks(bet *betting.Betfair, market string) {
 		log.Fatalln(err)
 	}
 
-	for _, b := range books {
-		fmt.Println(printMarketBook(b))
-		fmt.Println(b)
+	if len(books) != 1 {
+		return 0, fmt.Errorf("Unexpected number of books for the market")
 	}
-}
 
-func printEvent(e betting.Event) string {
-	return fmt.Sprintf("Event Id: %v\nName: %v\nStart Date: %v\n", e.ID, e.Name, e.OpenDate)
-}
+	if len(books[0].Runners) != 2 {
+		return 0, fmt.Errorf("Unexpected number of runners for the market")
+	}
 
-func printMarketCatalogue(b betting.MarketCatalogue) string {
-	return fmt.Sprintf("Market Id: %v\nName: %v\nCompetition: %v\n", b.MarketID, b.MarketName, b.Competition)
-}
-
-func printMarketBook(b betting.MarketBook) string {
-	return fmt.Sprintf("Market Id: %v\nIs Delayed: %v\nStatus: %v\n", b.MarketID, b.IsMarketDataDelayed, b.Status)
+	return books[0].Runners[index].LastPriceTraded, nil
 }

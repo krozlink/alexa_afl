@@ -17,7 +17,7 @@ type Credentials struct {
 	CertificateKey string `json:"certificate_key"`
 }
 
-func GetBetfairSession(c *Credentials) (*betting.Betfair, error) {
+func NewBetfairSession(c *Credentials) (*betting.Betfair, error) {
 	bet := betting.NewBet(c.APIKey)
 	key, err := getSessionKey([]byte(c.Certificate), []byte(c.CertificateKey), c.APIKey, c.Login, c.Password)
 

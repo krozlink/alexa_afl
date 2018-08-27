@@ -1,0 +1,14 @@
+{
+    "teams": {
+        "West Coast": "WEST_COAST",
+        "Hawthorn": "HAWTHORN",
+        "Melbourne": "MELBOURNE",
+        "Geelong": "GEELONG",
+        "Sydney": "SYDNEY",
+        "GWS": "GWS",
+        "Collingwood": "COLLINGWOOD"
+    },
+    "competition_id": "11897406",
+    "match_market_name": "Match Odds",
+    "premiership_market_id": "1.134652826"
+}

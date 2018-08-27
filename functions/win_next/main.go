@@ -28,16 +28,7 @@ func (h *Handler) OnSessionStarted(ctx context.Context, request *alexa.Request, 
 
 // OnLaunch called with a reqeust is received of type LaunchRequest
 func (h *Handler) OnLaunch(ctx context.Context, request *alexa.Request, session *alexa.Session, ctxPtr *alexa.Context, response *alexa.Response) error {
-	// speechText := "Welcome to AFL odds"
-
 	log.Printf("OnLaunch requestId=%s, sessionId=%s", request.RequestID, session.SessionID)
-
-	// response.SetSimpleCard(cardTitle, speechText)
-	// response.SetOutputText(speechText)
-	// response.SetRepromptText(speechText)
-
-	// response.ShouldSessionEnd = true
-
 	return nil
 }
 

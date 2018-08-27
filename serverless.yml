@@ -18,5 +18,3 @@ functions:
     events:
       - alexaSkill:
         appId: amzn1.ask.skill.f6128da6-7813-4025-a762-b78be8fc6863
-  win_premiership:
-    handler: bin/win_premiership
